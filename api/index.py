@@ -17,6 +17,7 @@ def home():
         h1 { color: #333; text-align: center; }
         input { width: 100%; padding: 12px; border: 2px solid #ddd; border-radius: 5px; font-size: 16px; box-sizing: border-box; }
         button { background-color: #4CAF50; color: white; padding: 12px 30px; border: none; border-radius: 5px; cursor: pointer; font-size: 16px; width: 100%; margin-top: 10px; }
+        .result { margin-top: 20px; padding: 15px; background-color: #f0f8ff; border-radius: 5px; }
     </style>
 </head>
 <body>
@@ -26,37 +27,37 @@ def home():
             <input type="url" id="url" placeholder="https://www.youtube.com/watch?v=..." required>
             <button type="submit">📥 Tải Video</button>
         </form>
+        <div id="result"></div>
     </div>
     <script>
         document.getElementById('form').addEventListener('submit', function(e) {
             e.preventDefault();
             const url = document.getElementById('url').value;
-            
-            // Hiển thị loading
             const button = document.querySelector('button');
+            const result = document.getElementById('result');
+            
             button.textContent = '⏳ Đang xử lý...';
             button.disabled = true;
+            result.innerHTML = '';
             
-            // Gọi API
             fetch('/download?url=' + encodeURIComponent(url))
                 .then(response => response.json())
                 .then(data => {
                     if (data.error) {
-                        alert('Lỗi: ' + data.error);
+                        result.innerHTML = '<div style="color: red; padding: 10px; background-color: #ffebee; border-radius: 5px;">❌ Lỗi: ' + data.error + '</div>';
                     } else {
-                        // Hiển thị kết quả
-                        const result = document.createElement('div');
                         result.innerHTML = `
-                            <h3>✅ Thành công!</h3>
-                            <p><strong>Tiêu đề:</strong> ${data.title}</p>
-                            <p><strong>Thời lượng:</strong> ${Math.floor(data.duration/60)}:${(data.duration%60).toString().padStart(2, '0')}</p>
-                            <a href="${data.url}" download="${data.title}.mp4" style="background-color: #4CAF50; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; display: inline-block; margin-top: 10px;">📥 Tải Video</a>
+                            <div class="result">
+                                <h3>✅ Thành công!</h3>
+                                <p><strong>Tiêu đề:</strong> ${data.title}</p>
+                                <p><strong>Thời lượng:</strong> ${Math.floor(data.duration/60)}:${(data.duration%60).toString().padStart(2, '0')}</p>
+                                <a href="${data.url}" download="${data.title}.mp4" style="background-color: #4CAF50; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; display: inline-block; margin-top: 10px;">📥 Tải Video</a>
+                            </div>
                         `;
-                        document.querySelector('.container').appendChild(result);
                     }
                 })
                 .catch(error => {
-                    alert('Lỗi: ' + error.message);
+                    result.innerHTML = '<div style="color: red; padding: 10px; background-color: #ffebee; border-radius: 5px;">❌ Lỗi: ' + error.message + '</div>';
                 })
                 .finally(() => {
                     button.textContent = '📥 Tải Video';
@@ -75,19 +76,11 @@ def download():
         return jsonify({"error": "Thiếu URL"}), 400
     
     try:
-        # Cấu hình tối ưu cho Vercel
         ydl_opts = {
             "format": "best[height<=480]/best",
             "nocheckcertificate": True,
             "ignoreerrors": True,
-            "no_warnings": True,
-            "extract_flat": False,
-            "writethumbnail": False,
-            "writeinfojson": False,
-            "writesubtitles": False,
-            "writeautomaticsub": False,
-            "embedsubtitles": False,
-            "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+            "no_warnings": True
         }
         
         with YoutubeDL(ydl_opts) as ydl:
@@ -98,7 +91,6 @@ def download():
         
         video_url = info.get('url')
         if not video_url:
-            # Thử lấy từ formats
             formats = info.get('formats', [])
             if formats:
                 for fmt in formats:
@@ -112,56 +104,14 @@ def download():
         title = info.get('title', 'video')
         duration = info.get('duration', 0)
         
-        # Kiểm tra video quá dài (Vercel có timeout)
-        if duration > 600:  # 10 phút
-            return jsonify({"error": "Video quá dài. Vercel có timeout 10 giây. Thử video ngắn hơn."}), 400
+        if duration > 600:
+            return jsonify({"error": "Video quá dài. Thử video ngắn hơn."}), 400
         
-        # Trả về URL thay vì stream (tránh timeout)
         return jsonify({
             "title": title,
             "url": video_url,
             "duration": duration,
             "message": "Click vào link để tải video"
-        })
-        
-    except Exception as e:
-        error_msg = str(e)
-        if "timeout" in error_msg.lower():
-            error_msg = "Timeout. Thử video ngắn hơn hoặc video khác."
-        elif "memory" in error_msg.lower():
-            error_msg = "Không đủ memory. Thử video nhỏ hơn."
-        
-        return jsonify({"error": error_msg}), 500
-
-@app.route("/info")
-def info():
-    url = request.args.get("url")
-    if not url:
-        return jsonify({"error": "Thiếu URL"}), 400
-    
-    try:
-        ydl_opts = {
-            "format": "best",
-            "nocheckcertificate": True,
-            "ignoreerrors": True,
-            "no_warnings": True,
-            "extract_flat": True
-        }
-        
-        with YoutubeDL(ydl_opts) as ydl:
-            info = ydl.extract_info(url, download=False)
-        
-        if not info:
-            return jsonify({"error": "Không thể lấy thông tin video"}), 400
-        
-        return jsonify({
-            "title": info.get('title', 'Unknown'),
-            "uploader": info.get('uploader', 'Unknown'),
-            "duration": info.get('duration', 0),
-            "view_count": info.get('view_count', 0),
-            "description": info.get('description', '')[:200] + '...' if info.get('description') else '',
-            "thumbnail": info.get('thumbnail', ''),
-            "status": "success"
         })
         
     except Exception as e:
