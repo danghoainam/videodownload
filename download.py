@@ -129,6 +129,7 @@ def download_video():
     try:
         # Cấu hình khác nhau cho từng platform
         if "tiktok.com" in url.lower():
+            # TikTok có vấn đề với sigi state, thử nhiều cách
             ydl_opts = {
                 "outtmpl": "%(title)s.%(ext)s",
                 "format": "best",
@@ -141,15 +142,24 @@ def download_video():
                 "writesubtitles": False,
                 "writeautomaticsub": False,
                 "embedsubtitles": False,
-                "user_agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 14_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.0.3 Mobile/15E148 Safari/604.1",
+                "user_agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.0 Mobile/15E148 Safari/604.1",
                 "referer": "https://www.tiktok.com/",
+                "cookiesfrombrowser": None,  # Không dùng cookies
+                "extractor_args": {
+                    "tiktok": {
+                        "webpage_url_basename": "video"
+                    }
+                },
                 "headers": {
-                    "User-Agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 14_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.0.3 Mobile/15E148 Safari/604.1",
+                    "User-Agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.0 Mobile/15E148 Safari/604.1",
                     "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
                     "Accept-Language": "en-US,en;q=0.9",
                     "Accept-Encoding": "gzip, deflate, br",
                     "Connection": "keep-alive",
                     "Upgrade-Insecure-Requests": "1",
+                    "Sec-Fetch-Dest": "document",
+                    "Sec-Fetch-Mode": "navigate",
+                    "Sec-Fetch-Site": "none",
                 }
             }
         else:
@@ -182,7 +192,23 @@ def download_video():
         
         # Kiểm tra info có hợp lệ không
         if not info:
-            return jsonify({"error": "Không thể lấy thông tin video. URL có thể không hợp lệ hoặc video bị hạn chế."}), 400
+            # Thử fallback method cho TikTok
+            if "tiktok.com" in url.lower():
+                try:
+                    # Thử với cấu hình đơn giản hơn
+                    fallback_opts = {
+                        "quiet": True,
+                        "no_warnings": True,
+                        "extract_flat": True,
+                        "user_agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.0 Mobile/15E148 Safari/604.1"
+                    }
+                    with YoutubeDL(fallback_opts) as ydl_fallback:
+                        info = ydl_fallback.extract_info(url, download=False)
+                except:
+                    pass
+            
+            if not info:
+                return jsonify({"error": "Không thể lấy thông tin video. URL có thể không hợp lệ hoặc video bị hạn chế."}), 400
         
         # Lấy URL trực tiếp của video
         video_url = info.get('url')
@@ -361,10 +387,10 @@ def test_tiktok():
             "extract_flat": True,
             "nocheckcertificate": True,
             "ignoreerrors": True,
-            "user_agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 14_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.0.3 Mobile/15E148 Safari/604.1",
+            "user_agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.0 Mobile/15E148 Safari/604.1",
             "referer": "https://www.tiktok.com/",
             "headers": {
-                "User-Agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 14_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.0.3 Mobile/15E148 Safari/604.1",
+                "User-Agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.0 Mobile/15E148 Safari/604.1",
                 "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
                 "Accept-Language": "en-US,en;q=0.9",
                 "Accept-Encoding": "gzip, deflate, br",
@@ -396,6 +422,69 @@ def test_tiktok():
             "url": url,
             "error_type": type(e).__name__,
             "platform": "TikTok"
+        })
+
+@app.route("/tiktok-alternative")
+def tiktok_alternative():
+    """Alternative method cho TikTok khi gặp lỗi sigi state"""
+    url = request.args.get("url")
+    if not url:
+        return jsonify({"error": "Thiếu URL"}), 400
+    
+    try:
+        # Method 1: Thử với extract_flat
+        ydl_opts_flat = {
+            "quiet": True,
+            "no_warnings": True,
+            "extract_flat": True,
+            "user_agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.0 Mobile/15E148 Safari/604.1"
+        }
+        
+        with YoutubeDL(ydl_opts_flat) as ydl:
+            info = ydl.extract_info(url, download=False)
+        
+        if info:
+            return jsonify({
+                "status": "success",
+                "title": info.get('title', 'Unknown'),
+                "uploader": info.get('uploader', 'Unknown'),
+                "duration": info.get('duration', 0),
+                "method": "extract_flat"
+            })
+        
+        # Method 2: Thử với format đơn giản
+        ydl_opts_simple = {
+            "quiet": True,
+            "no_warnings": True,
+            "format": "best",
+            "user_agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.0 Mobile/15E148 Safari/604.1"
+        }
+        
+        with YoutubeDL(ydl_opts_simple) as ydl:
+            info = ydl.extract_info(url, download=False)
+        
+        if info:
+            return jsonify({
+                "status": "success",
+                "title": info.get('title', 'Unknown'),
+                "uploader": info.get('uploader', 'Unknown'),
+                "duration": info.get('duration', 0),
+                "method": "simple_format"
+            })
+        
+        return jsonify({
+            "status": "failed",
+            "error": "TikTok hiện tại không khả dụng do thay đổi cấu trúc. Vui lòng thử lại sau.",
+            "suggestion": "Thử với video TikTok khác hoặc chờ cập nhật yt-dlp"
+        })
+            
+    except Exception as e:
+        return jsonify({
+            "status": "error", 
+            "error": str(e),
+            "url": url,
+            "error_type": type(e).__name__,
+            "platform": "TikTok Alternative"
         })
 
 if __name__ == "__main__":
