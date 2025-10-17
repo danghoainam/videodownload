@@ -40,7 +40,7 @@
 5. Cấu hình:
    - **Framework Preset**: `Other`
    - **Root Directory**: `./` (để trống)
-   - **Build Command**: `pip install -r requirements.txt`
+   - **Build Command**: `pip install -r requirements.txt --no-cache-dir`
    - **Output Directory**: `./` (để trống)
 6. Click **"Deploy"**
 
