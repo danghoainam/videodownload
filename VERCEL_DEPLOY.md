@@ -38,13 +38,24 @@
 3. Chọn **"Import Git Repository"**
 4. Chọn repository vừa tạo
 5. Cấu hình:
-   - **Framework Preset**: `Other`
+   - **Framework Preset**: `Python`
    - **Root Directory**: `./` (để trống)
    - **Build Command**: `pip install -r requirements.txt --no-cache-dir`
    - **Output Directory**: `./` (để trống)
 6. Click **"Deploy"**
 
-## 🎯 **Bước 4: Cấu hình Environment Variables**
+## 🎯 **Bước 4: Cấu hình Project Settings**
+
+Trong Vercel dashboard:
+
+1. Vào **Settings** → **General**
+2. Cấu hình:
+   - **Framework Preset**: `Python`
+   - **Build Command**: `pip install -r requirements.txt --no-cache-dir`
+   - **Output Directory**: `./`
+   - **Install Command**: `pip install -r requirements.txt --no-cache-dir`
+
+## 🎯 **Bước 5: Cấu hình Environment Variables**
 
 Trong Vercel dashboard:
 
