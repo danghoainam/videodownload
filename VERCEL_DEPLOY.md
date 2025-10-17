@@ -6,8 +6,10 @@
 
 - ✅ `api/index.py` - File chính (serverless function)
 - ✅ `vercel.json` - Cấu hình Vercel
-- ✅ `requirements.txt` - Dependencies (đơn giản)
+- ✅ `requirements.txt` - Dependencies (yt-dlp==2023.9.24)
 - ✅ `runtime.txt` - Python version
+- ✅ `package.json` - Node.js config
+- ✅ `build.sh` - Build script
 - ✅ `.vercelignore` - Ignore files
 
 ## 🎯 **Bước 1: Tạo tài khoản Vercel**
