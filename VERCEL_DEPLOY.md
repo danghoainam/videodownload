@@ -4,7 +4,7 @@
 
 ### Files cần có:
 
-- ✅ `download.py` - File chính
+- ✅ `api/index.py` - File chính (serverless function)
 - ✅ `vercel.json` - Cấu hình Vercel
 - ✅ `requirements.txt` - Dependencies
 - ✅ `README.md` - Hướng dẫn
