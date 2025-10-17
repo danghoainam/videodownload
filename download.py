@@ -127,13 +127,56 @@ def download_video():
         return jsonify({"error": "Thiếu URL"}), 400
     
     try:
-        ydl_opts = {
-            "outtmpl": "%(title)s.%(ext)s",
-            "format": "best[height<=720]/best[height<=480]/best",  # Thử nhiều format
-            "nocheckcertificate": True,
-            "ignoreerrors": True,
-            "no_warnings": True
-        }
+        # Cấu hình khác nhau cho từng platform
+        if "tiktok.com" in url.lower():
+            ydl_opts = {
+                "outtmpl": "%(title)s.%(ext)s",
+                "format": "best",
+                "nocheckcertificate": True,
+                "ignoreerrors": True,
+                "no_warnings": True,
+                "extract_flat": False,
+                "writethumbnail": False,
+                "writeinfojson": False,
+                "writesubtitles": False,
+                "writeautomaticsub": False,
+                "embedsubtitles": False,
+                "user_agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 14_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.0.3 Mobile/15E148 Safari/604.1",
+                "referer": "https://www.tiktok.com/",
+                "headers": {
+                    "User-Agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 14_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.0.3 Mobile/15E148 Safari/604.1",
+                    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+                    "Accept-Language": "en-US,en;q=0.9",
+                    "Accept-Encoding": "gzip, deflate, br",
+                    "Connection": "keep-alive",
+                    "Upgrade-Insecure-Requests": "1",
+                }
+            }
+        else:
+            ydl_opts = {
+                "outtmpl": "%(title)s.%(ext)s",
+                "format": "best[height<=720]/best[height<=480]/best",
+                "nocheckcertificate": True,
+                "ignoreerrors": True,
+                "no_warnings": True,
+                "extract_flat": False,
+                "writethumbnail": False,
+                "writeinfojson": False,
+                "writesubtitles": False,
+                "writeautomaticsub": False,
+                "embedsubtitles": False,
+                "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                "referer": "https://www.youtube.com/",
+                "headers": {
+                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+                    "Accept-Language": "en-us,en;q=0.5",
+                    "Accept-Encoding": "gzip, deflate",
+                    "DNT": "1",
+                    "Connection": "keep-alive",
+                    "Upgrade-Insecure-Requests": "1",
+                }
+            }
         with YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(url, download=False)
         
@@ -162,7 +205,15 @@ def download_video():
         
         # Tạo response để stream video về client
         def generate():
-            response = requests.get(video_url, stream=True)
+            headers = {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                'Referer': 'https://www.youtube.com/',
+                'Accept': '*/*',
+                'Accept-Language': 'en-US,en;q=0.9',
+                'Accept-Encoding': 'gzip, deflate, br',
+                'Connection': 'keep-alive',
+            }
+            response = requests.get(video_url, stream=True, headers=headers, timeout=30)
             for chunk in response.iter_content(chunk_size=8192):
                 if chunk:
                     yield chunk
@@ -192,6 +243,10 @@ def download_video():
             error_msg = "Video không khả dụng. Có thể bị xóa hoặc hạn chế."
         elif "Private video" in error_msg:
             error_msg = "Video riêng tư. Không thể tải video này."
+        elif "Unable to extract sigi state" in error_msg:
+            error_msg = "TikTok đã thay đổi cấu trúc. Vui lòng thử lại sau hoặc sử dụng video khác."
+        elif "TikTok" in error_msg:
+            error_msg = "Lỗi TikTok: " + error_msg + ". Thử video khác hoặc chờ cập nhật."
         
         return jsonify({"error": error_msg}), 500
 
@@ -253,7 +308,10 @@ def debug_url():
         ydl_opts = {
             "quiet": False,
             "no_warnings": False,
-            "extract_flat": True  # Chỉ lấy thông tin cơ bản
+            "extract_flat": True,  # Chỉ lấy thông tin cơ bản
+            "nocheckcertificate": True,
+            "ignoreerrors": True,
+            "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
         }
         
         with YoutubeDL(ydl_opts) as ydl:
@@ -266,7 +324,8 @@ def debug_url():
                 "uploader": info.get('uploader', 'Unknown'),
                 "duration": info.get('duration', 0),
                 "view_count": info.get('view_count', 0),
-                "is_live": info.get('is_live', False)
+                "is_live": info.get('is_live', False),
+                "formats_count": len(info.get('formats', []))
             })
         else:
             return jsonify({"status": "failed", "error": "Không thể lấy thông tin"})
@@ -275,7 +334,68 @@ def debug_url():
         return jsonify({
             "status": "error", 
             "error": str(e),
-            "url": url
+            "url": url,
+            "error_type": type(e).__name__
+        })
+
+@app.route("/test")
+def test_render():
+    return jsonify({
+        "status": "success",
+        "message": "Render server đang hoạt động",
+        "timestamp": str(__import__('datetime').datetime.now())
+    })
+
+@app.route("/tiktok-test")
+def test_tiktok():
+    """Test TikTok với cấu hình đặc biệt"""
+    url = request.args.get("url")
+    if not url:
+        return jsonify({"error": "Thiếu URL"}), 400
+    
+    try:
+        # Cấu hình đặc biệt cho TikTok
+        ydl_opts = {
+            "quiet": False,
+            "no_warnings": False,
+            "extract_flat": True,
+            "nocheckcertificate": True,
+            "ignoreerrors": True,
+            "user_agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 14_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.0.3 Mobile/15E148 Safari/604.1",
+            "referer": "https://www.tiktok.com/",
+            "headers": {
+                "User-Agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 14_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.0.3 Mobile/15E148 Safari/604.1",
+                "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+                "Accept-Language": "en-US,en;q=0.9",
+                "Accept-Encoding": "gzip, deflate, br",
+                "Connection": "keep-alive",
+                "Upgrade-Insecure-Requests": "1",
+            }
+        }
+        
+        with YoutubeDL(ydl_opts) as ydl:
+            info = ydl.extract_info(url, download=False)
+        
+        if info:
+            return jsonify({
+                "status": "success",
+                "title": info.get('title', 'Unknown'),
+                "uploader": info.get('uploader', 'Unknown'),
+                "duration": info.get('duration', 0),
+                "view_count": info.get('view_count', 0),
+                "is_live": info.get('is_live', False),
+                "platform": "TikTok"
+            })
+        else:
+            return jsonify({"status": "failed", "error": "Không thể lấy thông tin TikTok"})
+            
+    except Exception as e:
+        return jsonify({
+            "status": "error", 
+            "error": str(e),
+            "url": url,
+            "error_type": type(e).__name__,
+            "platform": "TikTok"
         })
 
 if __name__ == "__main__":
