@@ -84,6 +84,12 @@ def download():
 def test():
     return jsonify({"status": "success", "message": "Vercel server đang hoạt động"})
 
-# Vercel handler
+# Vercel handler - sửa lỗi issubclass
 def handler(request):
-    return app(request.environ, lambda *args: None)
+    try:
+        return app(request.environ, lambda *args: None)
+    except Exception as e:
+        return {
+            'statusCode': 500,
+            'body': str(e)
+        }
