@@ -487,6 +487,10 @@ def tiktok_alternative():
             "platform": "TikTok Alternative"
         })
 
+# Vercel serverless handler
+def handler(request):
+    return app(request.environ, lambda *args: None)
+
 if __name__ == "__main__":
     import os
     port = int(os.environ.get("PORT", 5000))
