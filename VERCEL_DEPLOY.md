@@ -40,7 +40,7 @@
 5. Cấu hình:
    - **Framework Preset**: `Python`
    - **Root Directory**: `./` (để trống)
-   - **Build Command**: `pip install -r requirements.txt --no-cache-dir`
+   - **Build Command**: `pip3 install -r requirements.txt --no-cache-dir`
    - **Output Directory**: `./` (để trống)
 6. Click **"Deploy"**
 
@@ -51,7 +51,7 @@ Trong Vercel dashboard:
 1. Vào **Settings** → **General**
 2. Cấu hình:
    - **Framework Preset**: `Python`
-   - **Build Command**: `pip install -r requirements.txt --no-cache-dir`
+   - **Build Command**: `pip3 install -r requirements.txt --no-cache-dir`
    - **Output Directory**: `./`
    - **Install Command**: `pip install -r requirements.txt --no-cache-dir`
 
